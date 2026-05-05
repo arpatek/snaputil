@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v0.4.0] - 2026-05-05
+### Changed
+- Replaced flat table layout with color-coded progress bars throughout (green < 60%, yellow < 85%, red ≥ 85%)
+- CPU section now shows per-core breakdown with individual bars, load average, and frequency
+- Memory section now leads with a usage bar above the stats
+- Disk section now shows a per-mountpoint bar, usage percentage, and total size inline
+- Snapshot mode (`build_dashboard`) and live mode (`build_live_layout`) share the same panel builders
+- `modules/cpu.py` now returns `CPU_PerCore` (list of per-core percentages); `CPU_Percent` is computed as their mean
+
+### Added
+- `build_live_layout()` — `rich.layout.Layout`-based full-terminal split-panel dashboard for watch mode
+- Keyboard input thread (`q` quit, `p` pause/resume) with POSIX termios; degrades gracefully on non-POSIX
+- Pause indicator in footer when dashboard is paused
+- Footer with keybind hints (`[q] quit  [p] pause/resume`)
+
+---
+
 ## [v0.3.0] - 2026-05-05
 ### Changed
 - Replaced `prettytable` with `rich` for all output rendering

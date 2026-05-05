@@ -25,26 +25,29 @@ def get_cpu_info():
         dict: {
             "CPU_Count": int - Logical CPU count,
             "CPU_Physical": int - Physical CPU core count,
-            "CPU_Percent": float - CPU usage percentage over 1 second,
+            "CPU_Percent": float - Aggregate usage percentage (mean of all cores),
+            "CPU_PerCore": list[float] - Per-core usage percentages,
             "CPU_Stats": scpustats - Context switches, interrupts, etc.,
             "CPU_Freq": scpufreq - Current/max/min frequency (MHz),
             "CPU_Load": tuple - 1, 5, 15-minute load averages
         }
     """
-    cpu_count = os.cpu_count()
+    cpu_count    = os.cpu_count()
     cpu_physical = psutil.cpu_count(logical=False)
-    cpu_percentage = psutil.cpu_percent(interval=1)
-    cpu_stats = psutil.cpu_stats()
-    cpu_freq = psutil.cpu_freq()
-    cpu_load = os.getloadavg()
+    cpu_per_core = psutil.cpu_percent(interval=1, percpu=True)
+    cpu_percent  = round(sum(cpu_per_core) / len(cpu_per_core), 1)
+    cpu_stats    = psutil.cpu_stats()
+    cpu_freq     = psutil.cpu_freq()
+    cpu_load     = os.getloadavg()
 
     return {
-        "CPU_Count": cpu_count,
+        "CPU_Count":    cpu_count,
         "CPU_Physical": cpu_physical,
-        "CPU_Percent": cpu_percentage,
-        "CPU_Stats": cpu_stats,
-        "CPU_Freq": cpu_freq,
-        "CPU_Load": cpu_load,
+        "CPU_Percent":  cpu_percent,
+        "CPU_PerCore":  cpu_per_core,
+        "CPU_Stats":    cpu_stats,
+        "CPU_Freq":     cpu_freq,
+        "CPU_Load":     cpu_load,
     }
 
 
