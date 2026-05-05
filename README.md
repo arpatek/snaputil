@@ -163,7 +163,7 @@ Each module exposes a `get_<subsystem>_info()` function that returns a dictionar
 1. Clone the repository:
 
    ```bash
-   git clone https://codeberg.org/0xjuang/snaputil.git
+   git clone https://codeberg.org/arpatek/snaputil.git
    cd snaputil
    ```
 
