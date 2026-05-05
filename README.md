@@ -1,5 +1,4 @@
 
-
 # snaputil
 
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -33,9 +32,9 @@
 ### Usage
 
 ```bash
-$ ./snaputil.py          # one-shot snapshot
-$ ./snaputil.py -w       # live refresh every 2 seconds
-$ ./snaputil.py -w 5     # live refresh every 5 seconds
+./snaputil.py          # one-shot snapshot
+./snaputil.py -w       # live refresh every 2 seconds
+./snaputil.py -w 5     # live refresh every 5 seconds
 ```
 
 Press `Ctrl+C` to exit live mode.
@@ -65,6 +64,43 @@ Each module exposes a `get_<subsystem>_info()` function that returns a dictionar
 
 ### Example Output
 
+**Terminal (TTY)**
+
+```text
+╭─────────────────────────────────────── SNAPUTIL ───────────────────────────────────────╮
+│ Hostname: dev-vm   OS: Linux   Kernel: 6.6.12-arch1-1   Uptime: 1d 3h 42m              │
+│ Snapshot: 2025-06-04 18:14:32                                                          │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+╭───────────── Memory ──────────────╮ ╭────────────────────── CPU ───────────────────────╮
+│                                   │ │                                                  │
+│   Metric         Value            │ │   Metric                      Value              │
+│  ━━━━━━━━━━━━━━━━━━━━━━           │ │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━             │
+│   Total        7.67 GB            │ │   Logical Cores                   4              │
+│   Used         4.12 GB            │ │   Physical Cores                  2              │
+│   Free         2.21 GB            │ │   Usage                       12.8%              │
+│   Available    3.45 GB            │ │   Load Avg         0.57, 0.89, 1.22              │
+│   Usage          53.7%            │ │                                                  │
+│                                   │ ╰──────────────────────────────────────────────────╯
+╰───────────────────────────────────╯
+╭───────────────────────────────────────── Disk ─────────────────────────────────────────╮
+│                                                                                        │
+│   Mount   Type       Total       Used        Free   Usage                              │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                          │
+│   /       ext4    50.00 GB   20.42 GB    27.89 GB   42.0%                              │
+│                                                                                        │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+╭──────────── Network Interfaces ─────────────╮ ╭───────────── Network I/O ──────────────╮
+│                                             │ │                                        │
+│   Interface   IP Address                    │ │   Direction      Volume                │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━                 │ │  ━━━━━━━━━━━━━━━━━━━━━━━               │
+│   eth0        192.168.0.100                 │ │   Sent         85.23 MB                │
+│                                             │ │   Received    124.67 MB                │
+╰─────────────────────────────────────────────╯ │                                        │
+                                                ╰────────────────────────────────────────╯
+```
+
+**Piped / log output** (`./snaputil.py >> system.log`)
+
 ```text
 ==============================================
   SNAPUTIL SYSTEM SNAPSHOT
@@ -88,14 +124,14 @@ Each module exposes a `get_<subsystem>_info()` function that returns a dictionar
 +-----------+-----------+
 
 [ CPU ]
-+----------------+---------------------+
-| Metric         |               Value |
-+----------------+---------------------+
-| Logical Cores  |                   4 |
-| Physical Cores |                   2 |
-| Usage          |               12.8% |
-| Load Avg       |    0.57, 0.89, 1.22 |
-+----------------+---------------------+
++----------------+------------------+
+| Metric         |            Value |
++----------------+------------------+
+| Logical Cores  |                4 |
+| Physical Cores |                2 |
+| Usage          |            12.8% |
+| Load Avg       | 0.57, 0.89, 1.22 |
++----------------+------------------+
 
 [ Disk ]
 +-------+------+----------+----------+-----------+-------+
@@ -125,19 +161,20 @@ Each module exposes a `get_<subsystem>_info()` function that returns a dictionar
 ### Installation
 
 1. Clone the repository:
+
    ```bash
    git clone https://codeberg.org/0xjuang/snaputil.git
    cd snaputil
    ```
 
 2. Install dependencies:
+
    ```bash
    pip install psutil rich prettytable
    ```
 
 3. Run the snapshot tool:
+
    ```bash
    ./snaputil.py
    ```
-
-
