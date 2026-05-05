@@ -22,7 +22,9 @@
 
 `[POSIX-friendly]` Designed to work seamlessly in Unix-like environments, including headless servers.  
 `[Modular Design]` Each subsystem is decoupled into a module (CPU, Mem, I/O, Net) for easy extension.  
-`[Table Output]` Uses `prettytable` for clean, aligned columnar output.  
+`[Rich Output]` Uses `rich` for styled, columnar tables and panel-based dashboard layout.  
+`[Live Mode]` `-w` flag enables a live-refreshing dashboard (btop-style) via `rich.Live`.  
+`[Log Friendly]` Auto-detects TTY — falls back to plain prettytable output when piped to a file.  
 `[Automation Ready]` Clean stdout output for chaining, logging, or integration.  
 `[Extensible]` Easy to extend for JSON formatting, CLI flag parsing, and live refresh.
 
@@ -31,8 +33,15 @@
 ### Usage
 
 ```bash
-$ ./snaputil.py
+$ ./snaputil.py          # one-shot snapshot
+$ ./snaputil.py -w       # live refresh every 2 seconds
+$ ./snaputil.py -w 5     # live refresh every 5 seconds
 ```
+
+Press `Ctrl+C` to exit live mode.
+
+When stdout is not a TTY (piped to a file or log), snaputil automatically falls back
+to plain-text prettytable output — safe for logging and automation pipelines.
 
 ---
 
@@ -123,7 +132,7 @@ Each module exposes a `get_<subsystem>_info()` function that returns a dictionar
 
 2. Install dependencies:
    ```bash
-   pip install psutil prettytable
+   pip install psutil rich prettytable
    ```
 
 3. Run the snapshot tool:

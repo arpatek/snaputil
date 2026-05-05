@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v0.3.0] - 2026-05-05
+### Changed
+- Replaced `prettytable` with `rich` for all output rendering
+- Snapshot output now uses styled panels and `rich.table.Table` with `SIMPLE_HEAVY` box style
+- Main entry function renamed from `basic_snap()` to `build_dashboard()`
+
+### Added
+- Live refresh mode via `rich.Live` — `-w` flag with optional interval (default: 2s)
+- Dashboard layout using `rich.columns.Columns` — Memory/CPU side by side, Network Interfaces/I/O side by side
+- `argparse` CLI with `-w / --watch` flag
+- TTY auto-detection — rich dashboard in terminal, plain prettytable output when piped to a file or log
+
+---
+
 ## [v0.2.0] - 2026-05-05
 ### Changed
 - Renamed project from **gTOP** to **snaputil** across all files, docstrings, and documentation
