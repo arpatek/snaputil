@@ -24,7 +24,7 @@
 `[Rich Output]` Uses `rich` for styled, columnar tables and panel-based dashboard layout.  
 `[Log Friendly]` Auto-detects TTY — falls back to plain prettytable output when piped to a file.  
 `[Automation Ready]` Clean stdout output for chaining, logging, or integration.  
-`[Extensible]` Easy to extend for JSON formatting, CLI flag parsing, and live refresh.
+`[Extensible]` Modular design makes it straightforward to add JSON output, extra subsystems, or a future TUI layer.
 
 ---
 
@@ -63,36 +63,26 @@ Each module exposes a `get_<subsystem>_info()` function that returns a dictionar
 **Terminal (TTY)**
 
 ```text
-╭─────────────────────────────────────── SNAPUTIL ───────────────────────────────────────╮
-│ Hostname: dev-vm   OS: Linux   Kernel: 6.6.12-arch1-1   Uptime: 1d 3h 42m              │
-│ Snapshot: 2025-06-04 18:14:32                                                          │
-╰────────────────────────────────────────────────────────────────────────────────────────╯
-╭───────────── Memory ──────────────╮ ╭────────────────────── CPU ───────────────────────╮
-│                                   │ │                                                  │
-│   Metric         Value            │ │   Metric                      Value              │
-│  ━━━━━━━━━━━━━━━━━━━━━━           │ │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━             │
-│   Total        7.67 GB            │ │   Logical Cores                   4              │
-│   Used         4.12 GB            │ │   Physical Cores                  2              │
-│   Free         2.21 GB            │ │   Usage                       12.8%              │
-│   Available    3.45 GB            │ │   Load Avg         0.57, 0.89, 1.22              │
-│   Usage          53.7%            │ │                                                  │
-│                                   │ ╰──────────────────────────────────────────────────╯
-╰───────────────────────────────────╯
-╭───────────────────────────────────────── Disk ─────────────────────────────────────────╮
-│                                                                                        │
-│   Mount   Type       Total       Used        Free   Usage                              │
-│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                          │
-│   /       ext4    50.00 GB   20.42 GB    27.89 GB   42.0%                              │
-│                                                                                        │
-╰────────────────────────────────────────────────────────────────────────────────────────╯
-╭──────────── Network Interfaces ─────────────╮ ╭───────────── Network I/O ──────────────╮
-│                                             │ │                                        │
-│   Interface   IP Address                    │ │   Direction      Volume                │
-│  ━━━━━━━━━━━━━━━━━━━━━━━━━━                 │ │  ━━━━━━━━━━━━━━━━━━━━━━━               │
-│   eth0        192.168.0.100                 │ │   Sent         85.23 MB                │
-│                                             │ │   Received    124.67 MB                │
-╰─────────────────────────────────────────────╯ │                                        │
-                                                ╰────────────────────────────────────────╯
+╭──────────────────────────────────────── SNAPUTIL ────────────────────────────────────────╮
+│ Hostname: dev-vm   OS: Linux   Kernel: 6.6.12-arch1-1   Uptime: 1d 3h 42m               │
+│ Snapshot: 2025-06-04 18:14:32                                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────╯
+╭────────────────────── CPU ───────────────────────╮ ╭────────────── Memory ───────────────╮
+│  Core 0    ████████░░░░░░░░░░░░░░░░░    33.3%    │ │  █████████████░░░░░░░░     53.7%    │
+│  Core 1    ████████████░░░░░░░░░░░░░    50.2%    │ │  Total                   7.67 GB    │
+│  Core 2    ████░░░░░░░░░░░░░░░░░░░░░    17.6%    │ │  Used                    4.12 GB    │
+│  Core 3    █░░░░░░░░░░░░░░░░░░░░░░░░     4.0%    │ │  Free                    2.21 GB    │
+│                                                  │ │  Available               3.45 GB    │
+│  Load Avg  0.57, 0.89, 1.22                      │ ╰─────────────────────────────────────╯
+│  Freq      2400 MHz                              │
+╰──────────────────────────────────────────────────╯
+╭────────────────────────────────────────── Disk ──────────────────────────────────────────╮
+│  /    ext4   ████████░░░░░░░░░░░░░░   42.0%   50.00 GB                                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────╯
+╭─────────── Network Interfaces ────────────╮ ╭─────────────── Network I/O ────────────────╮
+│  eth0  192.168.0.100                      │ │  Sent        85.23 MB                      │
+╰───────────────────────────────────────────╯ │  Received   124.67 MB                      │
+                                              ╰────────────────────────────────────────────╯
 ```
 
 **Piped / log output** (`./snaputil.py >> system.log`)
