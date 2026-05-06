@@ -17,17 +17,31 @@ import psutil
 
 
 # ──[ Network Info Collection ]─────────────────────────────────────────────────────────
-def get_net_info():
-    """
-    Collects active network interface information including IPv4 addresses,
-    link status, and total data transmitted/received.
+def get_net_info() -> dict:
+    """Collect network interface addresses, link stats, and cumulative I/O counters.
+
+    Only interfaces with a non-loopback IPv4 address (``socket.AF_INET``,
+    address != ``'127.0.0.1'``) are included in the ``Addresses`` mapping.
+    If an interface has multiple IPv4 addresses, the last one wins.
 
     Returns:
-        dict: {
-            "Addresses": dict - {iface_name: ip_address},
-            "Stats": dict - Interface statistics (psutil.net_if_stats),
-            "I/O": snetio - Total network I/O counters
-        }
+        dict: Contains the following keys:
+
+            - ``Addresses`` (dict[str, str]): Maps interface name to its IPv4
+              address string (e.g. ``{'eth0': '192.168.1.100'}``).
+            - ``Stats`` (dict[str, psutil.snicstats]): Per-interface link stats
+              from ``psutil.net_if_stats()`` — speed, duplex, MTU, and isup.
+            - ``I/O`` (psutil.snetio): System-wide cumulative I/O counters.
+              Key attributes: ``bytes_sent``, ``bytes_recv``, ``packets_sent``,
+              ``packets_recv``, ``errin``, ``errout``, ``dropin``, ``dropout``.
+
+    Example:
+        >>> data = get_net_info()
+        >>> for iface, ip in data["Addresses"].items():
+        ...     print(f"{iface}: {ip}")  # doctest: +SKIP
+        eth0: 192.168.1.100
+        >>> sent_mb = data["I/O"].bytes_sent / (1024 ** 2)
+        >>> assert sent_mb >= 0
     """
     nic_data = {}
     net_addr = psutil.net_if_addrs()
@@ -51,12 +65,16 @@ def get_net_info():
 
 
 # ──[ Debug Entry Point ]───────────────────────────────────────────────────────────────
-def main():
-    """
-    Debug entry point for standalone testing.
+def main() -> None:
+    """Run this module as a standalone diagnostic script.
 
-    Prints the full dictionary of network metrics returned by get_net_info().
-    Intended for development use only.
+    Pretty-prints the full output of :func:`get_net_info` to stdout.
+    Intended for development and debugging; not called by snaputil at runtime.
+
+    Example:
+        .. code-block:: shell
+
+            $ python3 modules/net.py
     """
     from pprint import pprint
     pprint(get_net_info())

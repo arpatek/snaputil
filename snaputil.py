@@ -63,6 +63,27 @@ from modules import cpu, io, mem, net
 
 # ──[ Helpers ]─────────────────────────────────────────────────────────────────────────
 def _usage_bar(percent: float, width: int = 25) -> str:
+    """Generate a color-coded Unicode block progress bar as a Rich markup string.
+
+    Color thresholds: green below 60 %, yellow from 60 % to 84 %, red at 85 %
+    and above.
+
+    Args:
+        percent (float): Usage level between 0.0 and 100.0.
+        width (int): Total number of bar characters. Defaults to 25.
+
+    Returns:
+        str: Rich markup string containing the colored bar, e.g.
+            ``'[green]████████░░░░░░░░░[/green]'``.
+
+    Example:
+        >>> _usage_bar(40.0, width=10)
+        '[green]████░░░░░░[/green]'
+        >>> _usage_bar(70.0, width=10)
+        '[yellow]███████░░░[/yellow]'
+        >>> _usage_bar(90.0, width=10)
+        '[red]█████████░[/red]'
+    """
     filled = int(percent / 100 * width)
     bar    = "█" * filled + "░" * (width - filled)
     color  = "green" if percent < 60 else "yellow" if percent < 85 else "red"
@@ -70,11 +91,50 @@ def _usage_bar(percent: float, width: int = 25) -> str:
 
 
 def _color_pct(percent: float) -> str:
+    """Format a percentage as a color-coded Rich markup string.
+
+    Applies the same thresholds as :func:`_usage_bar`: green below 60 %,
+    yellow 60–84 %, red 85 % and above.
+
+    Args:
+        percent (float): Usage level between 0.0 and 100.0.
+
+    Returns:
+        str: Rich markup string, e.g. ``'[green]45.0%[/green]'``.
+
+    Example:
+        >>> _color_pct(45.0)
+        '[green]45.0%[/green]'
+        >>> _color_pct(75.0)
+        '[yellow]75.0%[/yellow]'
+        >>> _color_pct(92.0)
+        '[red]92.0%[/red]'
+    """
     color = "green" if percent < 60 else "yellow" if percent < 85 else "red"
     return f"[{color}]{percent:.1f}%[/{color}]"
 
 
 def _sysinfo() -> tuple:
+    """Collect static system metadata for the dashboard header.
+
+    Gathers hostname, OS name, kernel version, formatted uptime, and a
+    human-readable timestamp at the moment of the call.
+
+    Returns:
+        tuple: A five-element tuple of pre-formatted strings:
+            ``(hostname, os_name, kernel, uptime, timestamp)``
+
+            - ``hostname`` (str): Machine hostname.
+            - ``os_name`` (str): OS name from ``platform.system()``
+              (e.g. ``'Linux'``).
+            - ``kernel`` (str): Kernel release from ``platform.release()``.
+            - ``uptime`` (str): Human-readable uptime (e.g. ``'1d 3h 42m'``).
+            - ``timestamp`` (str): Current local time as ``'YYYY-MM-DD HH:MM:SS'``.
+
+    Example:
+        >>> hostname, os_name, kernel, uptime, ts = _sysinfo()
+        >>> assert os_name in ("Linux", "Darwin", "Windows")
+    """
     hostname = socket.gethostname()
     os_name  = platform.system()
     kernel   = platform.release()
@@ -89,7 +149,25 @@ def _sysinfo() -> tuple:
 
 
 # ──[ Panel Builders ]──────────────────────────────────────────────────────────────────
-def _cpu_panel(cpu_data, bar_width: int = 25) -> Table:
+def _cpu_panel(cpu_data: dict, bar_width: int = 25) -> Table:
+    """Build a Rich Table showing per-core CPU usage bars.
+
+    Displays one row per logical core with a color-coded progress bar and
+    percentage. A blank separator row is followed by load average and, if
+    available, current CPU frequency.
+
+    Args:
+        cpu_data (dict): Output of :func:`modules.cpu.get_cpu_info`. Must
+            contain ``CPU_PerCore`` (list[float]), ``CPU_Load`` (tuple), and
+            ``CPU_Freq`` (psutil.scpufreq | None).
+        bar_width (int): Width of each progress bar in characters. Defaults
+            to 25. Use a larger value in the live layout where the CPU panel
+            is wider.
+
+    Returns:
+        rich.table.Table: Three-column table (Core, Bar, Usage) with no box
+            borders, intended to be wrapped in a :class:`rich.panel.Panel`.
+    """
     t = Table(box=None, show_header=False, padding=(0, 1))
     t.add_column("Core",  style="cyan",    no_wrap=True, width=8)
     t.add_column("Bar",   no_wrap=True)
@@ -108,7 +186,23 @@ def _cpu_panel(cpu_data, bar_width: int = 25) -> Table:
     return t
 
 
-def _mem_panel(mem_data, bar_width: int = 22) -> Table:
+def _mem_panel(mem_data: dict, bar_width: int = 22) -> Table:
+    """Build a Rich Table showing a memory usage bar followed by stats.
+
+    The first row contains the overall usage bar and color-coded percentage.
+    Subsequent rows show Total, Used, Free, and Available in GB.
+
+    Args:
+        mem_data (dict): Output of :func:`modules.mem.get_mem_info`. Must
+            contain ``Percent``, ``Total``, ``Used``, ``Free``, and
+            ``Available`` keys.
+        bar_width (int): Width of the progress bar in characters.
+            Defaults to 22.
+
+    Returns:
+        rich.table.Table: Two-column table (Key, Value) with no box borders,
+            intended to be wrapped in a :class:`rich.panel.Panel`.
+    """
     pct = mem_data["Percent"]
     t = Table(box=None, show_header=False, padding=(0, 1))
     t.add_column("Key",   no_wrap=True)
@@ -121,7 +215,25 @@ def _mem_panel(mem_data, bar_width: int = 22) -> Table:
     return t
 
 
-def _disk_panel(disk_data, bar_width: int = 22) -> Table:
+def _disk_panel(disk_data: dict, bar_width: int = 22) -> Table:
+    """Build a Rich Table showing per-mountpoint disk usage bars.
+
+    Each row represents a mounted partition with its filesystem type, a
+    color-coded usage bar, usage percentage, and total partition size.
+    Mountpoints absent from ``Disk_Usage`` (e.g. due to ``PermissionError``)
+    are silently skipped.
+
+    Args:
+        disk_data (dict): Output of :func:`modules.io.get_io_info`. Must
+            contain ``Disk_Partitions`` (list) and ``Disk_Usage`` (dict).
+        bar_width (int): Width of each progress bar in characters.
+            Defaults to 22.
+
+    Returns:
+        rich.table.Table: Five-column table (Mount, Type, Bar, Usage, Total)
+            with no box borders, intended to be wrapped in a
+            :class:`rich.panel.Panel`.
+    """
     t = Table(box=None, show_header=False, padding=(0, 1))
     t.add_column("Mount",  style="cyan",    no_wrap=True)
     t.add_column("Type",   no_wrap=True,    width=5)
@@ -141,7 +253,20 @@ def _disk_panel(disk_data, bar_width: int = 22) -> Table:
     return t
 
 
-def _iface_panel(net_data) -> Table:
+def _iface_panel(net_data: dict) -> Table:
+    """Build a Rich Table listing active network interfaces and their IPv4 addresses.
+
+    Only interfaces present in ``net_data["Addresses"]`` are shown (non-loopback
+    IPv4 only, as filtered by :func:`modules.net.get_net_info`).
+
+    Args:
+        net_data (dict): Output of :func:`modules.net.get_net_info`. Must
+            contain an ``Addresses`` key mapping interface names to IP strings.
+
+    Returns:
+        rich.table.Table: Two-column table (Interface, IP) with no box borders,
+            intended to be wrapped in a :class:`rich.panel.Panel`.
+    """
     t = Table(box=None, show_header=False, padding=(0, 1))
     t.add_column("Interface", style="cyan",  no_wrap=True)
     t.add_column("IP",        style="green", no_wrap=True)
@@ -150,7 +275,20 @@ def _iface_panel(net_data) -> Table:
     return t
 
 
-def _io_panel(net_data) -> Table:
+def _io_panel(net_data: dict) -> Table:
+    """Build a Rich Table showing cumulative system-wide network I/O totals.
+
+    Values reflect bytes transferred since system boot, not per-interval rates.
+
+    Args:
+        net_data (dict): Output of :func:`modules.net.get_net_info`. Must
+            contain an ``I/O`` key holding a ``psutil.snetio`` named tuple
+            with ``bytes_sent`` and ``bytes_recv`` attributes.
+
+    Returns:
+        rich.table.Table: Two-column table (Direction, Volume) with no box
+            borders, intended to be wrapped in a :class:`rich.panel.Panel`.
+    """
     net_io = net_data["I/O"]
     t = Table(box=None, show_header=False, padding=(0, 1))
     t.add_column("Direction", style="cyan",  no_wrap=True)
@@ -162,14 +300,28 @@ def _io_panel(net_data) -> Table:
 
 # ──[ Plain Text Snapshot (non-TTY) ]───────────────────────────────────────────────────
 def basic_snap() -> str:
-    """
-    Collect and format a plain-text system snapshot using prettytable.
+    """Collect and format a plain-text system snapshot using prettytable.
 
-    Used when stdout is not a TTY (e.g. redirected to a file or log).
-    Safe for piping, logging, and automation pipelines.
+    Intended for non-TTY contexts such as piped output, log files, and
+    automation pipelines. Produces no ANSI color codes or Unicode box
+    characters — safe for any plain-text consumer.
+
+    The call blocks for approximately 1 second while the CPU interval
+    measurement completes inside :func:`modules.cpu.get_cpu_info`.
 
     Returns:
-        str: A preformatted string ready for printing or writing to a file.
+        str: A multi-section preformatted string containing a header block
+            followed by Memory, CPU, Disk, Network Interfaces, and Network I/O
+            tables. Suitable for ``print()`` or direct ``file.write()``.
+
+    Example:
+        >>> output = basic_snap()
+        >>> assert "SNAPUTIL SYSTEM SNAPSHOT" in output
+
+        Append to a log file::
+
+            with open("system.log", "a") as f:
+                f.write(basic_snap())
     """
     # ──[ Fetch Subsystem Data ]────────────────────────────────────────────────────────
     cpu_data  = cpu.get_cpu_info()
@@ -271,7 +423,27 @@ def basic_snap() -> str:
 
 # ──[ Dashboard Builder ]───────────────────────────────────────────────────────────────
 def build_dashboard() -> Group:
-    """Snapshot mode: rich panel layout rendered once, adapts to content size."""
+    """Build a rich panel-based snapshot dashboard for TTY one-shot output.
+
+    Collects all subsystem data and assembles a ``rich.console.Group``
+    containing:
+
+    - A full-width header panel (hostname, OS, kernel, uptime, timestamp).
+    - A two-column row: CPU (per-core bars) | Memory (usage bar + stats).
+    - A full-width Disk panel (per-mountpoint bars).
+    - A two-column row: Network Interfaces | Network I/O.
+
+    Layout adapts to terminal width via ``rich.columns.Columns``. The call
+    blocks for ~1 second during CPU measurement.
+
+    Returns:
+        rich.console.Group: A renderable group suitable for
+            ``Console().print(build_dashboard())``.
+
+    Example:
+        >>> from rich.console import Console
+        >>> Console().print(build_dashboard())  # doctest: +SKIP
+    """
     # ──[ Fetch Subsystem Data ]────────────────────────────────────────────────────────
     cpu_data  = cpu.get_cpu_info()
     mem_data  = mem.get_mem_info()
@@ -305,7 +477,38 @@ def build_dashboard() -> Group:
 
 # ──[ Live Layout ]─────────────────────────────────────────────────────────────────────
 def build_live_layout(paused: bool = False) -> Layout:
-    """Watch mode: full-terminal split-panel layout, refreshed on interval."""
+    """Build a full-terminal split-panel layout for live watch mode.
+
+    Assembles a ``rich.layout.Layout`` that fills the entire terminal with
+    fixed-ratio panels::
+
+        ┌─────────────── Header (size=3) ───────────────┐
+        │ CPU (ratio=3)      │ Memory (ratio=2)          │ top (ratio=5)
+        ├────────────────────┴──────────────────────────┤
+        │ Disk                                          │ ratio=3
+        ├───────────────────────────────────────────────┤
+        │ Network Ifaces     │ Network I/O              │ ratio=2
+        ├───────────────────────────────────────────────┤
+        │ Footer (size=1)  [q] quit  [p] pause/resume   │
+        └───────────────────────────────────────────────┘
+
+    The call blocks for ~1 second during CPU measurement.
+
+    Args:
+        paused (bool): When ``True``, appends a ``[ PAUSED ]`` indicator to
+            the footer. Defaults to ``False``.
+
+    Returns:
+        rich.layout.Layout: A renderable layout suitable for use with
+            ``rich.live.Live(screen=True)``.
+
+    Example:
+        >>> from rich.live import Live
+        >>> from rich.console import Console
+        >>> console = Console()
+        >>> with Live(build_live_layout(), console=console, screen=True) as live:
+        ...     live.update(build_live_layout())  # doctest: +SKIP
+    """
     # ──[ Fetch Subsystem Data ]────────────────────────────────────────────────────────
     cpu_data  = cpu.get_cpu_info()
     mem_data  = mem.get_mem_info()
@@ -363,7 +566,25 @@ _pause_event = threading.Event()
 
 
 def _key_listener():
-    """Background thread: reads single keypresses to drive q/p actions."""
+    """Read single keypresses in the background and set shared control events.
+
+    Puts the terminal into raw (unbuffered, no-echo) mode via ``termios``
+    and ``tty`` so keystrokes are delivered immediately without a newline.
+    Recognized keys:
+
+    - ``q`` / ``Q`` / ``Ctrl+C`` (``\\x03``): sets ``_stop_event`` to
+      terminate the watch loop.
+    - ``p`` / ``P``: toggles ``_pause_event`` to pause or resume dashboard
+      updates.
+
+    Terminal settings are unconditionally restored in a ``finally`` block.
+    Any exception during reading is silently suppressed. This function is a
+    no-op on non-POSIX systems where ``termios`` is unavailable.
+
+    Note:
+        Intended to run as a ``daemon=True`` thread started from the
+        ``--watch`` entry path. Do not call directly.
+    """
     if not _POSIX:
         return
     fd  = sys.stdin.fileno()

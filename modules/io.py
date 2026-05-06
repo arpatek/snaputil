@@ -16,16 +16,38 @@ import psutil
 
 
 # ──[ Disk I/O Info Collection ]────────────────────────────────────────────────────────
-def get_io_info():
-    """
-    Collects disk partition, usage, and I/O statistics using psutil.
+def get_io_info() -> dict:
+    """Collect disk partition layout, usage statistics, and I/O counters.
+
+    Iterates physical mounted partitions via ``psutil.disk_partitions(all=False)``.
+    Partitions that raise ``PermissionError`` on ``disk_usage()`` are silently
+    skipped and will be absent from the ``Disk_Usage`` mapping.
 
     Returns:
-        dict: {
-            "Disk_Partitions": list - Device, mountpoint, FS type, and options,
-            "Disk_Usage": dict - Usage stats per mountpoint (total, used, free, percent),
-            "Disk_Counter": dict - Low-level I/O counters by device
-        }
+        dict: Contains the following keys:
+
+            - ``Disk_Partitions`` (list[dict]): One entry per mounted partition.
+              Each dict contains:
+
+                  - ``Device`` (str): Device path (e.g. ``'/dev/sda1'``).
+                  - ``Mountpoint`` (str): Mount location (e.g. ``'/'``).
+                  - ``FSType`` (str): Filesystem type (e.g. ``'ext4'``).
+                  - ``Opts`` (str): Mount options string.
+
+            - ``Disk_Usage`` (dict[str, dict]): Maps mountpoint to a usage dict
+              with ``Total``, ``Used``, ``Free`` (int, bytes) and
+              ``Percent`` (float). Mountpoints with ``PermissionError`` are
+              excluded.
+            - ``Disk_Counter`` (dict[str, psutil.sdiskio]): Per-device I/O
+              counters from ``psutil.disk_io_counters(perdisk=True)``.
+
+    Example:
+        >>> data = get_io_info()
+        >>> root = data["Disk_Usage"].get("/", {})
+        >>> if root:
+        ...     print(f"Root: {root['Percent']}% used")  # doctest: +SKIP
+        Root: 42.0% used
+        >>> assert all("Mountpoint" in p for p in data["Disk_Partitions"])
     """
     disk_partitions_raw = psutil.disk_partitions()
     disk_partitions = []
@@ -59,12 +81,16 @@ def get_io_info():
 
 
 # ──[ Debug Entry Point ]───────────────────────────────────────────────────────────────
-def main():
-    """
-    Debug entry point for standalone testing.
+def main() -> None:
+    """Run this module as a standalone diagnostic script.
 
-    Prints the full dictionary of disk metrics returned by get_io_info()
-    using pprint for readability. Intended for development use only.
+    Pretty-prints the full output of :func:`get_io_info` to stdout.
+    Intended for development and debugging; not called by snaputil at runtime.
+
+    Example:
+        .. code-block:: shell
+
+            $ python3 modules/io.py
     """
     from pprint import pprint
     pprint(get_io_info())

@@ -16,18 +16,24 @@ import psutil
 
 
 # ──[ Memory Info Collection ]──────────────────────────────────────────────────────────
-def get_mem_info():
-    """
-    Collects memory usage statistics using psutil.
+def get_mem_info() -> dict:
+    """Collect virtual memory statistics from the current system.
 
     Returns:
-        dict: {
-            "Total": int - Total physical memory in bytes,
-            "Available": int - Available memory in bytes,
-            "Used": int - Memory used in bytes,
-            "Free": int - Free memory in bytes,
-            "Percent": float - Memory usage as a percentage
-        }
+        dict: Contains the following keys (all byte counts are integers):
+
+            - ``Total`` (int): Total installed physical memory in bytes.
+            - ``Available`` (int): Memory available without swapping in bytes.
+            - ``Used`` (int): Memory currently in active use in bytes.
+            - ``Free`` (int): Memory not in use and not cached in bytes.
+            - ``Percent`` (float): Percentage of total memory currently in use.
+
+    Example:
+        >>> data = get_mem_info()
+        >>> total_gb = data["Total"] / (1024 ** 3)
+        >>> print(f"{total_gb:.2f} GB")  # doctest: +SKIP
+        16.00 GB
+        >>> assert 0.0 <= data["Percent"] <= 100.0
     """
     v_mem = psutil.virtual_memory()
     return {
@@ -40,12 +46,16 @@ def get_mem_info():
 
 
 # ──[ Debug Entry Point ]───────────────────────────────────────────────────────────────
-def main():
-    """
-    Debug entry point for standalone testing.
+def main() -> None:
+    """Run this module as a standalone diagnostic script.
 
-    Prints the full dictionary of memory metrics returned by get_mem_info()
-    using pprint for readability. Intended for development use only.
+    Pretty-prints the full output of :func:`get_mem_info` to stdout.
+    Intended for development and debugging; not called by snaputil at runtime.
+
+    Example:
+        .. code-block:: shell
+
+            $ python3 modules/mem.py
     """
     from pprint import pprint
     pprint(get_mem_info())

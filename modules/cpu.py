@@ -17,20 +17,34 @@ import psutil
 
 
 # ──[ CPU Info Collection ]─────────────────────────────────────────────────────────────
-def get_cpu_info():
-    """
-    Collects CPU statistics using psutil and os modules.
+def get_cpu_info() -> dict:
+    """Collect CPU statistics from the current system.
+
+    Measures usage over a 1-second blocking interval via
+    ``psutil.cpu_percent(percpu=True)``. The aggregate ``CPU_Percent`` is the
+    mean of all per-core values.
 
     Returns:
-        dict: {
-            "CPU_Count": int - Logical CPU count,
-            "CPU_Physical": int - Physical CPU core count,
-            "CPU_Percent": float - Aggregate usage percentage (mean of all cores),
-            "CPU_PerCore": list[float] - Per-core usage percentages,
-            "CPU_Stats": scpustats - Context switches, interrupts, etc.,
-            "CPU_Freq": scpufreq - Current/max/min frequency (MHz),
-            "CPU_Load": tuple - 1, 5, 15-minute load averages
-        }
+        dict: Contains the following keys:
+
+            - ``CPU_Count`` (int): Logical core count (includes hyperthreading).
+            - ``CPU_Physical`` (int): Physical core count.
+            - ``CPU_Percent`` (float): Mean usage across all cores, 1 d.p.
+            - ``CPU_PerCore`` (list[float]): Per-core usage percentages, one
+              value per logical core.
+            - ``CPU_Stats`` (psutil.scpustats): Low-level counters — context
+              switches, interrupts, soft interrupts, syscalls.
+            - ``CPU_Freq`` (psutil.scpufreq | None): Current, min, and max
+              frequency in MHz. May be ``None`` on some virtual machines.
+            - ``CPU_Load`` (tuple[float, float, float]): System load averages
+              over the last 1, 5, and 15 minutes.
+
+    Example:
+        >>> data = get_cpu_info()
+        >>> print(data["CPU_Percent"])
+        12.4
+        >>> print(len(data["CPU_PerCore"]) == data["CPU_Count"])
+        True
     """
     cpu_count    = os.cpu_count()
     cpu_physical = psutil.cpu_count(logical=False)
@@ -52,12 +66,16 @@ def get_cpu_info():
 
 
 # ──[ Debug Entry Point ]───────────────────────────────────────────────────────────────
-def main():
-    """
-    Debug entry point for standalone testing.
+def main() -> None:
+    """Run this module as a standalone diagnostic script.
 
-    Prints the full dictionary of CPU metrics returned by get_cpu_info()
-    using pprint for readability. Intended for development use only.
+    Pretty-prints the full output of :func:`get_cpu_info` to stdout.
+    Intended for development and debugging; not called by snaputil at runtime.
+
+    Example:
+        .. code-block:: shell
+
+            $ python3 modules/cpu.py
     """
     from pprint import pprint
     pprint(get_cpu_info())
