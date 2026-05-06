@@ -14,7 +14,7 @@ Dependencies:
 -------------
 - Python 3.6+
 - `psutil` for hardware/system metrics
-- `rich` for formatted tables and live dashboard rendering
+- `rich` for formatted tables and styled dashboard output
 - `prettytable` for plain-text output when stdout is not a TTY
 - `platform`, `socket`, `time` from stdlib
 - `modules/` directory containing:
@@ -25,37 +25,24 @@ Dependencies:
 
 Sample Usage:
 -------------
-$ ./snaputil.py             # one-shot snapshot
-$ ./snaputil.py -w          # live refresh every 2 seconds
-$ ./snaputil.py -w 5        # live refresh every 5 seconds
+$ ./snaputil.py             # styled snapshot (TTY auto-detected)
 $ ./snaputil.py >> sys.log  # plain-text log (auto-detected, no TTY)
 """
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 # ──[ Standard Library Imports ]────────────────────────────────────────────────────────
 # from pprint import pprint  # debug artifact — useful for inspecting raw dicts during TUI development
-import argparse
 import sys
 import socket
 import time
 import platform
-import threading
 import psutil
-try:
-    import termios
-    import tty as _tty
-    _POSIX = True
-except ImportError:
-    _POSIX = False
 from prettytable import PrettyTable
 from rich.console import Console, Group
 from rich.columns import Columns
-from rich.layout import Layout
-from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
-from rich.text import Text
 
 # ──[ Internal Module Imports ]─────────────────────────────────────────────────────────
 from modules import cpu, io, mem, net
@@ -475,178 +462,10 @@ def build_dashboard() -> Group:
     )
 
 
-# ──[ Live Layout ]─────────────────────────────────────────────────────────────────────
-def build_live_layout(paused: bool = False) -> Layout:
-    """Build a full-terminal split-panel layout for live watch mode.
-
-    Assembles a ``rich.layout.Layout`` that fills the entire terminal with
-    fixed-ratio panels::
-
-        ┌─────────────── Header (size=3) ───────────────┐
-        │ CPU (ratio=3)      │ Memory (ratio=2)          │ top (ratio=5)
-        ├────────────────────┴──────────────────────────┤
-        │ Disk                                          │ ratio=3
-        ├───────────────────────────────────────────────┤
-        │ Network Ifaces     │ Network I/O              │ ratio=2
-        ├───────────────────────────────────────────────┤
-        │ Footer (size=1)  [q] quit  [p] pause/resume   │
-        └───────────────────────────────────────────────┘
-
-    The call blocks for ~1 second during CPU measurement.
-
-    Args:
-        paused (bool): When ``True``, appends a ``[ PAUSED ]`` indicator to
-            the footer. Defaults to ``False``.
-
-    Returns:
-        rich.layout.Layout: A renderable layout suitable for use with
-            ``rich.live.Live(screen=True)``.
-
-    Example:
-        >>> from rich.live import Live
-        >>> from rich.console import Console
-        >>> console = Console()
-        >>> with Live(build_live_layout(), console=console, screen=True) as live:
-        ...     live.update(build_live_layout())  # doctest: +SKIP
-    """
-    # ──[ Fetch Subsystem Data ]────────────────────────────────────────────────────────
-    cpu_data  = cpu.get_cpu_info()
-    mem_data  = mem.get_mem_info()
-    disk_data = io.get_io_info()
-    net_data  = net.get_net_info()
-
-    # ──[ System Metadata ]─────────────────────────────────────────────────────────────
-    hostname, os_name, kernel, uptime, timestamp = _sysinfo()
-    header = (
-        f"[bold cyan]Hostname:[/bold cyan] {hostname}   "
-        f"[bold cyan]OS:[/bold cyan] {os_name}   "
-        f"[bold cyan]Kernel:[/bold cyan] {kernel}   "
-        f"[bold cyan]Uptime:[/bold cyan] {uptime}   "
-        f"[bold cyan]Snapshot:[/bold cyan] {timestamp}"
-    )
-
-    pause_tag  = "  [bold yellow][ PAUSED ][/bold yellow]" if paused else ""
-    footer_txt = Text.from_markup(
-        f" [dim][[/dim][bold]q[/bold][dim]][/dim] quit  "
-        f"[dim][[/dim][bold]p[/bold][dim]][/dim] pause/resume{pause_tag}"
-    )
-
-    # ──[ Assemble Layout ]─────────────────────────────────────────────────────────────
-    layout = Layout()
-    layout.split_column(
-        Layout(name="header",  size=3),
-        Layout(name="top",     ratio=5),
-        Layout(name="disk",    ratio=3),
-        Layout(name="network", ratio=2),
-        Layout(name="footer",  size=1),
-    )
-    layout["top"].split_row(
-        Layout(name="cpu",    ratio=3),
-        Layout(name="memory", ratio=2),
-    )
-    layout["network"].split_row(
-        Layout(name="ifaces"),
-        Layout(name="net_io"),
-    )
-
-    layout["header"].update(Panel(header, title="[bold green]SNAPUTIL[/bold green]"))
-    layout["cpu"].update(Panel(_cpu_panel(cpu_data,  bar_width=28), title="[bold]CPU[/bold]"))
-    layout["memory"].update(Panel(_mem_panel(mem_data, bar_width=20), title="[bold]Memory[/bold]"))
-    layout["disk"].update(Panel(_disk_panel(disk_data, bar_width=24), title="[bold]Disk[/bold]"))
-    layout["ifaces"].update(Panel(_iface_panel(net_data), title="[bold]Network Interfaces[/bold]"))
-    layout["net_io"].update(Panel(_io_panel(net_data),    title="[bold]Network I/O[/bold]"))
-    layout["footer"].update(footer_txt)
-
-    return layout
-
-
-# ──[ Keyboard Listener ]───────────────────────────────────────────────────────────────
-_stop_event  = threading.Event()
-_pause_event = threading.Event()
-
-
-def _key_listener():
-    """Read single keypresses in the background and set shared control events.
-
-    Puts the terminal into raw (unbuffered, no-echo) mode via ``termios``
-    and ``tty`` so keystrokes are delivered immediately without a newline.
-    Recognized keys:
-
-    - ``q`` / ``Q`` / ``Ctrl+C`` (``\\x03``): sets ``_stop_event`` to
-      terminate the watch loop.
-    - ``p`` / ``P``: toggles ``_pause_event`` to pause or resume dashboard
-      updates.
-
-    Terminal settings are unconditionally restored in a ``finally`` block.
-    Any exception during reading is silently suppressed. This function is a
-    no-op on non-POSIX systems where ``termios`` is unavailable.
-
-    Note:
-        Intended to run as a ``daemon=True`` thread started from the
-        ``--watch`` entry path. Do not call directly.
-    """
-    if not _POSIX:
-        return
-    fd  = sys.stdin.fileno()
-    old = termios.tcgetattr(fd)
-    try:
-        _tty.setraw(fd)
-        while not _stop_event.is_set():
-            ch = sys.stdin.read(1)
-            if ch in ("q", "Q", "\x03"):
-                _stop_event.set()
-            elif ch in ("p", "P"):
-                if _pause_event.is_set():
-                    _pause_event.clear()
-                else:
-                    _pause_event.set()
-    except Exception:
-        pass
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old)
-
-
 # ──[ Entry Point ]─────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        prog="snaputil",
-        description="Lightweight system snapshot tool.",
-    )
-    parser.add_argument(
-        "-w", "--watch",
-        metavar="SECONDS",
-        type=int,
-        nargs="?",
-        const=2,
-        help="live refresh mode; optionally specify interval in seconds (default: 2)",
-    )
-    args = parser.parse_args()
-
-    is_tty  = sys.stdout.isatty()
     console = Console()
-
-    if args.watch:
-        if not is_tty:
-            print("snaputil: --watch requires a TTY", file=sys.stderr)
-            sys.exit(1)
-        _stop_event.clear()
-        _pause_event.clear()
-        key_thread = threading.Thread(target=_key_listener, daemon=True)
-        key_thread.start()
-        try:
-            with Live(
-                build_live_layout(),
-                console=console,
-                screen=True,
-                refresh_per_second=4,
-            ) as live:
-                while not _stop_event.is_set():
-                    time.sleep(args.watch)
-                    if not _stop_event.is_set():
-                        live.update(build_live_layout(paused=_pause_event.is_set()))
-        finally:
-            _stop_event.set()
-    elif is_tty:
+    if sys.stdout.isatty():
         console.print(build_dashboard())
     else:
         print(basic_snap())

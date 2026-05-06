@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v0.4.1] - 2026-05-05
+### Removed
+- Live refresh mode (`-w` / `--watch`) — `rich.Live` + `rich.layout.Layout` produced
+  unavoidable flicker and terminal-height clipping on typical terminal sizes. Removed
+  pending a proper curses or textual-based implementation in a future version.
+- `build_live_layout()`, `_key_listener()`, and all related threading/termios imports.
+
+---
+
 ## [v0.4.0] - 2026-05-05
 ### Changed
 - Replaced flat table layout with color-coded progress bars throughout (green < 60%, yellow < 85%, red ≥ 85%)
