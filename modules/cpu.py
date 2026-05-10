@@ -7,7 +7,7 @@ This module collects various CPU-related statistics including logical and physic
 count, current usage percentage, load averages, CPU frequency, and low-level CPU stats.
 Used internally by snaputil.py to provide system snapshots.
 
-Author: Juan J. Garcia (arpatek)
+Author: Juan Garcia (arpatek)
 """
 
 # ──[ Imports ]─────────────────────────────────────────────────────────────────────────

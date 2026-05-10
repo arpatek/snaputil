@@ -8,7 +8,7 @@ vital metrics from CPU, memory, disk, and network subsystems using formatted tab
 Designed for terminal use and modular enough to be extended into a full live-dashboard
 monitoring suite (btop-style TUI).
 
-Author: Juan J. Garcia (arpatek)
+Author: Juan Garcia (arpatek)
 
 Dependencies:
 -------------

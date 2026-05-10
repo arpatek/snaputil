@@ -7,7 +7,7 @@ This module gathers essential network statistics including interface IP addresse
 interface stats, and total I/O counters. Used internally by snaputil.py for system
 snapshots.
 
-Author: Juan J. Garcia (arpatek)
+Author: Juan Garcia (arpatek)
 """
 
 # ──[ Imports ]─────────────────────────────────────────────────────────────────────────

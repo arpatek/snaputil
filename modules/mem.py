@@ -7,7 +7,7 @@ This module collects memory usage statistics using psutil, including total, used
 available, free, and percent usage values. Used internally by snaputil.py to provide
 system snapshots.
 
-Author: Juan J. Garcia (arpatek)
+Author: Juan Garcia (arpatek)
 """
 
 # ──[ Imports ]─────────────────────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ This module collects various disk-related statistics including mounted partition
 usage per mountpoint, and raw disk I/O counters. Used internally by snaputil.py to
 provide system snapshots.
 
-Author: Juan J. Garcia (arpatek)
+Author: Juan Garcia (arpatek)
 """
 
 # ──[ Imports ]─────────────────────────────────────────────────────────────────────────
